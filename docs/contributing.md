@@ -8,8 +8,9 @@ This document gives a technical overview of the project, for newcomers who want 
 
 This project has minimal dependency on Xcode-only features (e.g. InterfaceBuilder, Playgrounds). You can build it by doing:
 
-* `scripts/codesign/setup_local.sh` to generate a local self-signed certificate, to avoid having to re-check the `System Preferences > Security & Privacy` permissions on every build
-* Either open `alt-tab-macos.xcodeproj` with Xcode, or use the CLI: `xcodebuild -project alt-tab-macos.xcodeproj -scheme Debug` to build the .app with the `Debug` build configuration
+* `bash ai/build.sh -xcconfig config/personal.xcconfig` builds the Debug app with an ad-hoc signature.
+* `bash ai/test.sh -xcconfig config/personal.xcconfig CODE_SIGNING_ALLOWED=NO` runs resource checks, build-script tests, and Swift unit tests.
+* `bash scripts/ci/build.sh` builds and packages a Release app for Apple Silicon. See [Personal GitHub build](personal-build.zh-CN.md) for the runner, download, and installation steps.
 
 ## Mac development
 

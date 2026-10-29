@@ -1,5 +1,11 @@
 # Hidden directories at any depth
 .*/
+# Version the personal workflow while keeping other untracked hidden-directory content ignored.
+!/.github/
+/.github/*
+!/.github/workflows/
+/.github/workflows/*
+!/.github/workflows/personal-build.yml
 xcuserdata/
 /buildServer.json
 WorkspaceSettings.xcsettings
@@ -16,3 +22,5 @@ codesign.p12
 /config/local.xcconfig
 /scripts/l10n/missing-translations.json
 /ai/output/
+/artifacts/
+__pycache__/

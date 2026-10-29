@@ -1,0 +1,8 @@
+// Overrides for certificate-free personal builds; other build configurations retain their signing identities.
+CODE_SIGN_STYLE = Manual
+CODE_SIGN_IDENTITY = -
+DEVELOPMENT_TEAM =
+PROVISIONING_PROFILE_SPECIFIER =
+OTHER_CODE_SIGN_FLAGS = --timestamp=none
+CODE_SIGN_INJECT_BASE_ENTITLEMENTS = NO
+APPCENTER_SECRET =

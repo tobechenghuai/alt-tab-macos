@@ -22,7 +22,7 @@
 	<key>LSApplicationCategoryType</key>
 	<string>public.app-category.utilities</string>
 
-	<!-- ===== Versioning (substituted from xcconfig; CI overrides via config/local.xcconfig) ===== -->
+	<!-- ===== Versioning (personal builds pass CURRENT_PROJECT_VERSION to xcodebuild) ===== -->
 	<key>CFBundleShortVersionString</key>
 	<string>$(CURRENT_PROJECT_VERSION)</string>
 	<key>CFBundleVersion</key>
