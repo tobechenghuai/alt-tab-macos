@@ -1,0 +1,12 @@
+// Custom builds have a separate identity and preference domain; developer builds retain their existing identities.
+CODE_SIGN_STYLE = Manual
+CODE_SIGN_IDENTITY = -
+DEVELOPMENT_TEAM =
+PROVISIONING_PROFILE_SPECIFIER =
+OTHER_CODE_SIGN_FLAGS = --timestamp=none
+CODE_SIGN_INJECT_BASE_ENTITLEMENTS = NO
+APPCENTER_SECRET =
+ALTTAB_PRODUCT_NAME = AltTab Custom
+ALTTAB_BUNDLE_IDENTIFIER = com.tobechenghuai.alttab-custom
+ALTTAB_SOURCE_REPOSITORY = github.com/tobechenghuai/alt-tab-macos
+SWIFT_ACTIVE_COMPILATION_CONDITIONS = $(inherited) CUSTOM_BUILD

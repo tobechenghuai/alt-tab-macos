@@ -1,11 +1,11 @@
 # Hidden directories at any depth
 .*/
-# Version the personal workflow while keeping other untracked hidden-directory content ignored.
+# Version the custom workflow while keeping other untracked hidden-directory content ignored.
 !/.github/
 /.github/*
 !/.github/workflows/
 /.github/workflows/*
-!/.github/workflows/personal-build.yml
+!/.github/workflows/build-custom.yml
 xcuserdata/
 /buildServer.json
 WorkspaceSettings.xcsettings

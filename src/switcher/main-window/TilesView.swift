@@ -163,6 +163,16 @@ class TilesView {
         }
     }
 
+    static func startSearchIfTyping(_ event: NSEvent) {
+        guard searchMode == .off else { return }
+        let printable = eventProducesText(event)
+        guard SearchModeResolver.shouldStartTyping(mode: searchMode, producesText: printable,
+            hasCommandModifier: !event.modifierFlags.intersection([.command, .control]).isEmpty,
+            isMenuOpen: ContextMenuEvents.isMenuOpen,
+            matchesShortcut: printable && matchesAnyWhenActiveShortcut(event, printable)) else { return }
+        enableSearchEditing()
+    }
+
     private static func arrowCycleDirection(_ keyCode: UInt16) -> CycleDirection? {
         switch Int(keyCode) {
             case kVK_LeftArrow: return .left

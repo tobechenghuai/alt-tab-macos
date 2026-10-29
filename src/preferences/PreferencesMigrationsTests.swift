@@ -311,6 +311,40 @@ final class PreferencesMigrationsTests: XCTestCase {
         XCTAssertEqual(defaults.string(forKey: "screensToShow"), "1")
     }
 
+    func testNineShortcutSettingsAndAppearanceOverridesSurviveReopeningAndMigration() throws {
+        defaults.set("9", forKey: "shortcutCount")
+        for index in 0..<9 {
+            for (key, value) in [("appsToShow", String(index % 3)), ("spacesToShow", "0"),
+                                 ("appearanceStyleOverride", String(index % 3)),
+                                 ("appearanceSizeOverride", String(index % 4)),
+                                 ("appearanceThemeOverride", String(index % 3)),
+                                 ("shortcutStyleOverride", String(index % 3)),
+                                 ("previewFocusedWindowOverride", index % 2 == 0 ? "true" : "false")] {
+                defaults.set(value, forKey: Preferences.indexToName(key, index))
+            }
+            let storage: [String: Any] = ["string": "⌥", "secureData": Data([UInt8(index)])]
+            for key in ["holdShortcut", "nextWindowShortcut"] {
+                defaults.set(storage, forKey: Preferences.indexToName(key, index))
+            }
+        }
+        defaults.set(PreferencesMigrations.currentVersion, forKey: "preferencesVersion")
+        let saved = try XCTUnwrap(defaults.persistentDomain(forName: suiteName))
+        let reopened = try XCTUnwrap(UserDefaults(suiteName: suiteName))
+        PreferencesMigrations.defaults = reopened
+        PreferencesMigrations.migratePreferences()
+        PreferencesMigrations.migratePreferences()
+        let restored = try XCTUnwrap(reopened.persistentDomain(forName: suiteName))
+        XCTAssertEqual(restored as NSDictionary, saved as NSDictionary)
+        XCTAssertEqual(reopened.string(forKey: "shortcutCount"), "9")
+    }
+
+    #if CUSTOM_BUILD
+    func testCustomSchemaIsIndependentOfApplicationBuildCounter() {
+        XCTAssertEqual(PreferencesMigrations.currentVersion, "11.0.0")
+        XCTAssertFalse(PreferencesMigrations.shouldRun(PreferencesMigrations.currentVersion, "10.13.0"))
+    }
+    #endif
+
     // MARK: - Helpers
 
     private func storage(_ key: String) -> NSDictionary? {

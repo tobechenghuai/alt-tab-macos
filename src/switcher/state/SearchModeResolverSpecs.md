@@ -111,3 +111,7 @@ Mirrors `SearchModeResolverTests.swift` 1:1.
 - **testEditingPrintableBindingWithCommandModifierMatchesBare** — a Cmd/Ctrl binding (`cancel = Cmd+Q`) is a command, not text → bare arm honored.
 - **testEditingWindowActionTypesBareButTriggersWithHold** — default `closeWindow = W`: bare `w` types; hold+W closes (the generalization of #5781 to the whole when-active set).
 - **testEditingModifierOnlyShortcutTypesBareButTriggersWithHold** — default `previousWindow = ⇧`: bare Shift uppercases (does not navigate); `⌥⇧` navigates. Modifier-only shortcuts are routed through this kernel from `ATShortcut.modifiersMatch` because they arrive as `flagsChanged`, not keyDown.
+
+## Direct typing
+
+A printable key in an active, key switcher enters search and reaches the existing field editor on the same event. Cmd/Ctrl commands, matched hold-key shortcuts, control keys and open menus retain their routes. The first-key path reuses the current window model and cached search ranking. Chinese IME composition continues through the native field editor.

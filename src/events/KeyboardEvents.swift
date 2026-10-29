@@ -207,6 +207,9 @@ class KeyboardEvents {
     private static func addLocalMonitorForKeyDownAndKeyUp() {
         localEventMonitor = NSEvent.addLocalMonitorForEvents(matching: [.keyDown, .keyUp]) { (event: NSEvent) in
             if DismissalInput.discard(event) { return nil }
+            if event.type == .keyDown, SwitcherSession.isActive, TilesPanel.shared.isKeyWindow {
+                TilesView.startSearchIfTyping(event)
+            }
             let keyCode = event.type == .keyDown ? UInt32(event.keyCode) : nil
             let isARepeat = event.type == .keyDown ? event.isARepeat : false
             let shouldAbsorbEvent = handleKeyboardEvent(nil, nil, keyCode, event.modifierFlags, isARepeat, event)

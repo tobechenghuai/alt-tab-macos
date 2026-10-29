@@ -90,3 +90,12 @@ Before 10.4.0 shortcuts were stored as key-equivalent strings. The reader delete
 
 ### P. Dropdowns: English text → indexes
 - **testDropdownTextValuesBecomeIndexes** — `appsToShow "Active app"` → `"1"`; `screensToShow "Screen showing AltTab"` → `"1"`.
+
+## Custom build schema
+
+- `CUSTOM_BUILD` uses schema marker `11.0.0`, independently of the app's `0.0.<run>` build counter.
+- Fresh Custom installs store that marker. Later launches and builds preserve current nine-slot trigger, filter, appearance, release-style, and preview settings.
+- A separate Bundle ID keeps the original app's preference domain intact. Import uses the existing owned-key filter and applies the imported settings after restart.
+- When upstream adds migrations, advance the Custom marker after reviewing those transforms. A static source contract checks that the marker stays newer than all legacy migration thresholds.
+
+`PreferencesMigrationsTests.testNineShortcutSettingsAndAppearanceOverridesSurviveReopeningAndMigration` reopens the isolated suite and runs startup migration twice. `testCustomSchemaIsIndependentOfApplicationBuildCounter` checks the Custom marker in the actual Custom test configuration.

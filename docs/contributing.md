@@ -8,9 +8,9 @@ This document gives a technical overview of the project, for newcomers who want 
 
 This project has minimal dependency on Xcode-only features (e.g. InterfaceBuilder, Playgrounds). You can build it by doing:
 
-* `bash ai/build.sh -xcconfig config/personal.xcconfig` builds the Debug app with an ad-hoc signature.
-* `bash ai/test.sh -xcconfig config/personal.xcconfig CODE_SIGNING_ALLOWED=NO` runs resource checks, build-script tests, and Swift unit tests.
-* `bash scripts/ci/build.sh` builds and packages a Release app for Apple Silicon. See [Personal GitHub build](personal-build.zh-CN.md) for the runner, download, and installation steps.
+* `bash ai/build.sh -xcconfig config/custom.xcconfig` builds the Debug app with an ad-hoc signature.
+* `bash ai/test.sh -xcconfig config/custom.xcconfig CODE_SIGNING_ALLOWED=NO` runs resource checks, build-script tests, and Swift unit tests.
+* `bash scripts/ci/build.sh` builds and packages a Release app for Apple Silicon. See [AltTab Custom build](../CUSTOM_BUILD.md) for the runner, download, and installation steps.
 
 ## Mac development
 

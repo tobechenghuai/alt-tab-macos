@@ -5,6 +5,15 @@ class PreferencesMigrations {
     /// Production keeps `.standard`; behavior is unchanged.
     static var defaults = UserDefaults.standard
 
+    static var currentVersion: String {
+        #if CUSTOM_BUILD
+        // The Custom build counter is independent of the schema represented by this source snapshot.
+        return "11.0.0"
+        #else
+        return App.version
+        #endif
+    }
+
     static func removeCorruptedPreferences() {
         // from v5.1.0+, there are crash reports of users somehow having their hold shortcuts set to ""
         ["holdShortcut", "holdShortcut2", "holdShortcut3", "holdShortcut4", "holdShortcut5"].forEach {
@@ -18,11 +27,11 @@ class PreferencesMigrations {
         let preferencesKey = "preferencesVersion"
         let existingVersion = Self.defaults.string(forKey: preferencesKey)
         if let versionInPlist = existingVersion {
-            if versionInPlist != "#VERSION#" && versionInPlist.compare(App.version, options: .numeric) != .orderedDescending {
+            if versionInPlist != "#VERSION#" && versionInPlist.compare(currentVersion, options: .numeric) != .orderedDescending {
                 updateToNewPreferences(versionInPlist)
             }
         }
-        Self.defaults.set(App.version, forKey: preferencesKey)
+        Self.defaults.set(currentVersion, forKey: preferencesKey)
     }
 
     static func updateToNewPreferences(_ versionInPlist: String) {

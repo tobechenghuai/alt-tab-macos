@@ -183,4 +183,18 @@ final class TileGridLayoutTests: XCTestCase {
         XCTAssertEqual(measured, ["large", "medium", "small"])
         XCTAssertEqual(picked, measured.last)
     }
+
+    func testLargeWindowSetsFitDifferentScreenWidthsInBothDirections() {
+        for width in [CGFloat(320), 800, 1440, 2560] {
+            for leftToRight in [true, false] {
+                let result = layout(Array(repeating: 90, count: 500), widthMax: width,
+                    isLeftToRight: leftToRight)
+                XCTAssertEqual(result.rows.flatMap { $0 }, Array(0..<500))
+                for origin in result.origins {
+                    XCTAssertGreaterThanOrEqual(origin.x, 0)
+                    XCTAssertLessThanOrEqual(origin.x + 90, width)
+                }
+            }
+        }
+    }
 }

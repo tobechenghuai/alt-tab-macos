@@ -42,6 +42,11 @@ enum SearchKeyDecision: Equatable {
 }
 
 enum SearchModeResolver {
+    static func shouldStartTyping(mode: SearchMode, producesText: Bool, hasCommandModifier: Bool,
+                                  isMenuOpen: Bool, matchesShortcut: Bool) -> Bool {
+        mode == .off && producesText && !hasCommandModifier && !isMenuOpen && !matchesShortcut
+    }
+
     static func startMode(startInSearch: Bool) -> SearchMode {
         startInSearch ? .editing : .off
     }

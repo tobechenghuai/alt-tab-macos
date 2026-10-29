@@ -97,3 +97,5 @@ Mirrors `TileGridLayoutTests.swift` 1:1.
 - **testAutoKeepsTheSmallestWhenNothingFits** — every candidate is measured and the last one is returned.
 - **testAutoMeasuresEachCandidateExactlyOnce** — the measurement has side effects in production
   (`Appearance.applySize`), so the call order and count are part of the contract.
+
+Custom regression coverage includes 500 windows at four screen widths in both writing directions, with every tile kept within the available horizontal bounds.

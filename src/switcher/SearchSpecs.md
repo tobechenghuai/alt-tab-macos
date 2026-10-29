@@ -111,3 +111,5 @@ Mirrors `SearchTests.swift` 1:1.
 
 ### damerauLevenshtein primitive
 - **testDLEdits**
+
+Custom regression tests cover Chinese titles, mixed Chinese/English application names, case-insensitive matches, and highlight spans in original Unicode text.

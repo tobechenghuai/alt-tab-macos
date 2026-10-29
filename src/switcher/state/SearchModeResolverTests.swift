@@ -208,4 +208,25 @@ final class SearchModeResolverTests: XCTestCase {
             eventModifiers: Self.shift | Self.option, shortcutModifiers: Self.shift, holdModifiers: Self.option,
             isPrintable: true, shortcutHasCommandModifier: false))
     }
+
+    func testTypingEntersSearchInNormalSession() {
+        XCTAssertTrue(SearchModeResolver.shouldStartTyping(mode: .off, producesText: true,
+            hasCommandModifier: false, isMenuOpen: false, matchesShortcut: false))
+    }
+
+    func testTypingPreservesExistingCommandsAndMenus() {
+        XCTAssertFalse(SearchModeResolver.shouldStartTyping(mode: .off, producesText: true,
+            hasCommandModifier: true, isMenuOpen: false, matchesShortcut: false))
+        XCTAssertFalse(SearchModeResolver.shouldStartTyping(mode: .off, producesText: true,
+            hasCommandModifier: false, isMenuOpen: true, matchesShortcut: false))
+        XCTAssertFalse(SearchModeResolver.shouldStartTyping(mode: .off, producesText: true,
+            hasCommandModifier: false, isMenuOpen: false, matchesShortcut: true))
+    }
+
+    func testControlKeysAndExistingEditingKeepTheirRoutes() {
+        XCTAssertFalse(SearchModeResolver.shouldStartTyping(mode: .off, producesText: false,
+            hasCommandModifier: false, isMenuOpen: false, matchesShortcut: false))
+        XCTAssertFalse(SearchModeResolver.shouldStartTyping(mode: .editing, producesText: true,
+            hasCommandModifier: false, isMenuOpen: false, matchesShortcut: false))
+    }
 }

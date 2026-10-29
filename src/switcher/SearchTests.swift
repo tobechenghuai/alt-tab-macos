@@ -455,4 +455,18 @@ final class SearchTests: XCTestCase {
         XCTAssertNil(SearchTestable.damerauLevenshtein(Array("abcd"), Array("efgh"), k: 1))
     }
 
+
+    func testChineseWindowTitleAndMixedEnglishAppName() {
+        XCTAssertNotNil(match("项目计划", "项目计划 — 文档"))
+        XCTAssertNotNil(match("项目", "项目计划 — 文档"))
+        XCTAssertNotNil(match("CHROME", "Google Chrome"))
+        XCTAssertNotNil(match("微信", "微信 WeChat"))
+        XCTAssertNil(match("项目计划", "Safari"))
+    }
+
+    func testChineseHighlightMapsToOriginalTitle() throws {
+        let result = try XCTUnwrap(match("项目", "2026 项目计划"))
+        let characters = Array("2026 项目计划")
+        XCTAssertEqual(String(characters[result.span]), "项目")
+    }
 }
