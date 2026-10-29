@@ -303,6 +303,5 @@ class SidebarListRow: ClickHoverStackView {
         titleLabel.needsDisplay = true
         summaryLabel.needsDisplay = true
         chevronLabel.needsDisplay = true
-        proBadge?.setSelected(isSelectedRow && isKey)
     }
 }

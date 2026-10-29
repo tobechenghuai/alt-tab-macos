@@ -10,7 +10,7 @@ ROOT = Path(__file__).resolve().parents[2]
 
 class CustomFeatureSourceTests(unittest.TestCase):
     def test_runtime_sources_keep_local_features_independent_of_commercial_state(self):
-        gates = r'\b(?:LicenseManager|LicenseStatus|ProFeature|isProLocked|trialExpired|requiresPro|canUseProFeatures)\b'
+        gates = r'\b(?:LicenseManager|LicenseStatus|ProFeature|isProLocked|trialExpired|requiresPro|canUseProFeatures|[Pp]roBadge)\b'
         for path in (ROOT / 'src').rglob('*.swift'):
             if path.name.endswith('Tests.swift') or '_test-support' in path.parts:
                 continue

@@ -22,6 +22,14 @@
 
 新增 Swift 回归方法：8 个，包括 Custom 条件编译下的 schema 用例。既有匹配、布局、快捷键、窗口筛选、Space、焦点和设置迁移测试继续由 `ai/test.sh` 执行。
 
+## SidebarList 编译错误修复（2026-10-29）
+
+- 修复基础提交：`619221ef164a20b4b04159761bdb88e0ac2f7aff`。
+- CI 的 `unit-tests` 目标在 `SidebarList.swift:306` 报告 `cannot find 'proBadge' in scope`。`SidebarListRow.updateStyle()` 遗留了已移除徽标的选中状态更新，已删除该调用，保留原有背景、字体和标签刷新。
+- 现有本地功能源码检查增加 `ProBadge` / `proBadge` 残留检测。修复前该检查失败并定位到上述引用；修复后 19 项 Python 测试通过。生产 Swift 源码中的同类授权和徽标符号检查通过。
+- 6 项插画测试、29 个插画生成状态、工程引用检查和 `git diff --check` 均通过；工程包含 205 个应用源文件与 151 个单元测试源文件。
+- 本机 Linux 的 `ai/test.sh` 在 Python 测试通过后因缺少 `plutil` 停止；`ai/build.sh` 因缺少 `xcodebuild` 退出 127。Swift 单元测试、完整应用编译和侧边栏交互仍待 macOS CI / 真机验证。
+
 ## Actions 与产物
 
 工作流：`.github/workflows/build-custom.yml`。它先执行资源与单元测试，再完整编译 Debug app 和 Release app。产物为 `AltTab-Custom-arm64.zip` 与 `SHA256SUMS.txt`，保留 30 天。
