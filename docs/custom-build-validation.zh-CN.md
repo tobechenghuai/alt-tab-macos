@@ -28,6 +28,16 @@
 
 本记录产生于本地提交前。提交、推送、Actions 运行及 Artifact 的实际状态以最终交付报告和对应 GitHub 运行页面为准。
 
+## ShortcutRecorder 弃用 API 修复（2026-10-29）
+
+- 修复基础提交：`aecf2f75eb16b555dcf9a7412de4af57892fe500`。
+- `SRShortcutAction.m` 的归档读取改用 `unarchivedObjectOfClass:fromData:error:`，允许的根对象类型为已有 `NSSecureCoding` 实现的 `SRShortcut`。解码失败时关联快捷键置空；字典和直接对象路径沿用现有处理。
+- `SR_keyEventType` 的两处异常事件日志改用 `os_log_error`。vendor 库其他位置的旧日志 API 仍会产生相应弃用警告。
+- 补丁保存在 `vendor/scripts/patches/shortcut-recorder-modern-apis.diff`，由 `vendor/scripts/update_shortcut_recorder.sh` 在更新依赖时应用。
+- 已执行：19 项 Python 测试、6 项插画测试、29 个插画生成状态检查、更新脚本 Shell 语法检查、`git diff --check`；全部通过。临时目录中从基础源码应用补丁后，结果与当前源码逐字节一致。
+- `ai/test.sh` 的 Python 测试通过，随后因 Linux 缺少 `plutil` 停止；`ai/build.sh` 因缺少 `xcodebuild` 退出 127。安全归档往返、异常归档、Objective-C 编译与实际快捷键事件处理仍待 macOS 验证。
+- 本次用户提供的日志标记为 `warning:`。仓库设置将 Swift 警告视为错误；这段 Objective-C 弃用日志本身提供了警告信息，实际构建结果以完整 CI 日志为准。
+
 ## 真机验证清单
 
 - [ ] 初次安装、Gatekeeper 允许、辅助功能和屏幕录制授权。

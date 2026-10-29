@@ -4,6 +4,7 @@
 //
 
 #import <Carbon/Carbon.h>
+#import <os/log.h>
 #import <os/trace.h>
 #import <os/activity.h>
 
@@ -344,7 +345,7 @@ static void *_SRShortcutActionContext = &_SRShortcutActionContext;
         if ([newShortcut isKindOfClass:NSDictionary.class])
             newShortcut = [SRShortcut shortcutWithDictionary:(NSDictionary *)newShortcut];
         else if ([newShortcut isKindOfClass:NSData.class])
-            newShortcut = [NSKeyedUnarchiver unarchiveObjectWithData:(NSData *)newShortcut];
+            newShortcut = [NSKeyedUnarchiver unarchivedObjectOfClass:SRShortcut.class fromData:(NSData *)newShortcut error:NULL];
         else if ((NSNull *)newShortcut == NSNull.null)
             newShortcut = nil;
 
@@ -392,11 +393,11 @@ static void *_SRShortcutActionContext = &_SRShortcutActionContext;
             else if (keyCode == kVK_Control || keyCode == kVK_RightControl)
                 eventType = self.modifierFlags & NSEventModifierFlagControl ? SRKeyEventTypeDown : SRKeyEventTypeUp;
             else
-                os_trace("#Error Unexpected key code %hu for the FlagsChanged event", keyCode);
+                os_log_error(OS_LOG_DEFAULT, "Unexpected key code %hu for the FlagsChanged event", keyCode);
             break;
         }
         default:
-            os_trace("#Error Unexpected key event of type %lu", self.type);
+            os_log_error(OS_LOG_DEFAULT, "Unexpected key event of type %lu", (unsigned long)self.type);
             break;
     }
 

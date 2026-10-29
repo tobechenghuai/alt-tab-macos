@@ -43,6 +43,8 @@ patch_sr_bundle() {
 }
 patch_sr_bundle
 
+patch -p1 -d "$DEST" < "$(dirname "$0")/patches/shortcut-recorder-modern-apis.diff"
+
 apply_local_patches "$DEST"
 
 # Write Package.swift (regenerated each update so the manifest stays in sync with the layout)
