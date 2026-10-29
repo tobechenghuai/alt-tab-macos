@@ -3,7 +3,7 @@ class CliEvents {
     static let portName = "\(App.bundleIdentifier).cli"
 
     static func observe() {
-        guard !listening else { return }
+        guard CliAccessPolicy.isEnabled(arguments: CommandLine.arguments), !listening else { return }
         listening = true
         var context = CFMessagePortContext(version: 0, info: nil, retain: nil, release: nil, copyDescription: nil)
         if let messagePort = CFMessagePortCreateLocal(nil, portName as CFString, handleEvent, &context, nil),
@@ -611,7 +611,7 @@ class CliClient {
             }
             exit(0)
         } catch {
-            fail("AltTab.app needs to be running for CLI commands to work")
+            fail("Start AltTab with --enable-cli to allow local CLI commands")
         }
     }
 

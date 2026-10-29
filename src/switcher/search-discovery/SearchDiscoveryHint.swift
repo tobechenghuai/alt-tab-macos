@@ -12,6 +12,7 @@ final class SearchDiscoveryHint {
     private var observers = [NSObjectProtocol]()
     private var refreshScheduled = false
     private var initialized = false
+    private var historyGeneration = 0
     private let defaults = UserDefaults.standard
     #if DEBUG
     private var previewNextSession = false
@@ -36,22 +37,7 @@ final class SearchDiscoveryHint {
     func initialize() {
         guard !initialized else { return }
         initialized = true
-        history = SearchDiscoveryPolicy.History(
-            hasSearched: history.hasSearched == true || defaults.bool(forKey: "searchDiscovery.hasSearched") ? true : nil,
-            exposures: defaults.integer(forKey: "searchDiscovery.exposures"),
-            lastExposure: defaults.object(forKey: "searchDiscovery.lastExposure") as? Date)
-        history.hasUsedExtraShortcut = defaults.object(forKey: "searchDiscovery.usedExtra") as? Bool
-        history.lastWasExtraShortcut = defaults.bool(forKey: "searchDiscovery.lastWasExtra")
-        UsageStats.loadPreviousExtraShortcut { [weak self] used in
-            guard let self, history.hasUsedExtraShortcut != true else { return }
-            history.hasUsedExtraShortcut = used
-        }
-        UsageStats.loadPreviousSearch { [weak self] used in
-            guard let self else { return }
-            history.resolvePreviousSearch(used)
-            if history.hasSearched == true {
-                persistHistory() }
-        }
+        loadHistory()
         observe(NSMenu.didBeginTrackingNotification) { $0.cancel() }
         observe(NSWindow.didBecomeKeyNotification) { hint in
             if hint.isOtherUIBlocking { hint.cancel() }
@@ -59,7 +45,6 @@ final class SearchDiscoveryHint {
         observe(NSWindow.didMoveNotification) { $0.refreshAfterVisibleWork() }
         observe(NSWindow.didResizeNotification) { $0.refreshAfterVisibleWork() }
         observe(NSApplication.didChangeScreenParametersNotification) { $0.cancel() }
-        observe(ProTransitionManager.proLockStateDidChangeNotification) { $0.refreshAfterVisibleWork() }
         for name in [
             NSWorkspace.didActivateApplicationNotification,
             NSWorkspace.activeSpaceDidChangeNotification,
@@ -74,6 +59,34 @@ final class SearchDiscoveryHint {
             forName: NSWorkspace.accessibilityDisplayOptionsDidChangeNotification, object: nil, queue: .main
         ) { [weak self] _ in self?.refreshAfterVisibleWork() }
         observers.append(observer)
+    }
+
+    func statisticsPreferenceChanged() {
+        guard initialized else { return }
+        cancel()
+        historyGeneration += 1
+        history = SearchDiscoveryPolicy.History()
+        loadHistory()
+    }
+
+    private func loadHistory() {
+        history = SearchDiscoveryPolicy.History(
+            hasSearched: history.hasSearched == true || defaults.bool(forKey: "searchDiscovery.hasSearched") ? true : nil,
+            exposures: defaults.integer(forKey: "searchDiscovery.exposures"),
+            lastExposure: defaults.object(forKey: "searchDiscovery.lastExposure") as? Date)
+        history.hasUsedExtraShortcut = defaults.object(forKey: "searchDiscovery.usedExtra") as? Bool
+        history.lastWasExtraShortcut = defaults.bool(forKey: "searchDiscovery.lastWasExtra")
+        let generation = historyGeneration
+        UsageStats.loadPreviousExtraShortcut { [weak self] used in
+            guard let self, historyGeneration == generation, history.hasUsedExtraShortcut != true else { return }
+            history.hasUsedExtraShortcut = used
+        }
+        UsageStats.loadPreviousSearch { [weak self] used in
+            guard let self, historyGeneration == generation else { return }
+            history.resolvePreviousSearch(used)
+            if history.hasSearched == true {
+                persistHistory() }
+        }
     }
 
     private func observe(_ name: Notification.Name, _ action: @escaping (SearchDiscoveryHint) -> Void) {
@@ -112,7 +125,7 @@ final class SearchDiscoveryHint {
             offeredExtra = session.searchDiscovery.previewsExtraShortcut ? extraShortcutCandidate() : nil
         }
         #endif
-        let now = LicenseManager.shared.clock.now
+        let now = Date()
         guard session.searchDiscovery.isReady(current: SwitcherSession.current?.searchDiscovery,
                                               now: ProcessInfo.processInfo.systemUptime),
               let shortcut = offeredExtra?.shortcut ?? usableShortcut(), session.searchDiscovery.isEligible(context: context(), history: history),
@@ -138,7 +151,6 @@ final class SearchDiscoveryHint {
         guard recordsHistory else { return }
         history.lastWasExtraShortcut = offeredExtra != nil
         history.recordExposure(at: now)
-        ProTransitionManager.shared.state.recordMessage()
         persistHistory()
     }
 
@@ -160,14 +172,29 @@ final class SearchDiscoveryHint {
         guard history.hasUsedExtraShortcut != true else { return }
         history.hasUsedExtraShortcut = true
         cancel()
-        DispatchQueue.main.async { self.persistHistory()
-        }
+        persistHistoryLater()
     }
 
     func searchWasUsed() {
         history.recordSearch()
         cancel()
-        DispatchQueue.main.async { self.persistHistory() }
+        persistHistoryLater()
+    }
+
+    func clearUsageHistory() {
+        cancel()
+        historyGeneration += 1
+        history = SearchDiscoveryPolicy.History(hasSearched: false)
+        history.hasUsedExtraShortcut = false
+        UsageStatsMaintenance.clearDiscoveryHistory(from: defaults)
+    }
+
+    private func persistHistoryLater() {
+        let generation = historyGeneration
+        DispatchQueue.main.async {
+            guard self.historyGeneration == generation else { return }
+            self.persistHistory()
+        }
     }
 
     func refreshAfterVisibleWork() {
@@ -210,26 +237,19 @@ final class SearchDiscoveryHint {
     }
 
     private func context() -> SearchDiscoveryPolicy.Context {
-        let license = LicenseManager.shared
-        let access: SearchDiscoveryPolicy.Access
-        switch license.state {
-        case .trial: access = .trial(day: license.daysSinceTrialStart)
-        case .pro: access = .pro
-        case .trialNotStarted, .trialExpired, .proExpired: access = .locked
-        }
-        return SearchDiscoveryPolicy.Context(access: access,
+        return SearchDiscoveryPolicy.Context(
             windowCount: Windows.list.count { $0.shouldShowTheUser && !$0.isWindowlessApp },
-            enabled: CachedUserDefaults.bool("showSearchHint"), optedOut: ProTransitionManager.shared.userOptedOut,
+            enabled: CachedUserDefaults.bool("showSearchHint"),
             searchActive: TilesView.isSearchModeOn,
-            blockedByOtherUI: isOtherUIBlocking || ProTransitionManager.shared.hasPendingPrompt,
+            blockedByOtherUI: isOtherUIBlocking,
             hasShortcut: offeredExtra != nil || usableShortcut() != nil,
                                              extraShortcut: offeredExtra != nil)
     }
 
     private var isOtherUIBlocking: Bool {
-        ScreenLockEvents.isScreenLocked || ProTransitionManager.shared.state.onboardingInProgress ||
-            ContextMenuEvents.isMenuOpen || ProPromptPopover.isShowing || NSApp.modalWindow != nil
-            || NSApp.windows.contains { $0.isVisible && ($0 is ProPromptWindow || $0 is PermissionsWindow || $0 is SettingsWindow ||
+        ScreenLockEvents.isScreenLocked || OnboardingPopover.isShowing ||
+            ContextMenuEvents.isMenuOpen || NSApp.modalWindow != nil
+            || NSApp.windows.contains { $0.isVisible && ($0 is PermissionsWindow || $0 is SettingsWindow ||
                         $0 is FeedbackWindow) }
     }
 
@@ -329,6 +349,7 @@ final class SearchDiscoveryHint {
     }
 
     private func persistHistory() {
+        guard Preferences.usageStatisticsEnabled else { return }
         if let used = history.hasUsedExtraShortcut {
             defaults.set(used, forKey: "searchDiscovery.usedExtra")
         }

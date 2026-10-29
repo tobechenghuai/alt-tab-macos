@@ -2,7 +2,6 @@ import Cocoa
 import Darwin
 import ShortcutRecorder
 import AppCenterCrashes
-import Sparkle
 
 class App: AppCenterApplication {
     /// Held for the process lifetime. `static let` is lazy, so `init` has to touch it or App Nap is never
@@ -23,21 +22,16 @@ class App: AppCenterApplication {
 
     override class var shared: App { super.shared as! App }
     static var supportProjectAction: Selector { #selector(App.supportProject) }
-    static var upgradeToProAction: Selector { #selector(App.upgradeToPro) }
-    static var openAccountAction: Selector { #selector(App.openAccount) }
     static var isTerminating = false
     private static var isVeryFirstSummon = true
     /// How long the panel waits for the launch inventory when the very first summon arrives before it
     /// (`showUiOrCycleSelection`). One inventory lands ~280ms after it is asked for, measured.
     private static let launchInventoryGraceInMs = 400
     private static var pendingShowSettingsWindow = false
-    private static var firstLaunchSettingsObserver: NSObjectProtocol?
     /// Written once and never read: AppCenter holds its delegate weakly, so this is the strong reference
     /// that keeps the crash handler alive for the process lifetime.
     // periphery:ignore
     private static var appCenterDelegate: AppCenterCrash?
-    static var sparkleDelegate: SparkleDelegate?
-    static var updaterController: SPUStandardUpdaterController?
     private static var delayedDisplayWork: DispatchWorkItem?
     private static let switcherUiRepaintCoalescer = RepaintCoalescer()
 
@@ -51,10 +45,7 @@ class App: AppCenterApplication {
         fatalError("Class only supports programmatic initialization")
     }
 
-    /// we put application code here which should be executed on init() and Preferences change
-    /// The switcher UI only exists once permissions are granted. Activating a license through the
-    /// `alt-tab://activate` url launches the app and can land its callback before that, so we bail
-    /// instead of resetting a UI that isn't built yet (`TilesView.reset` traps on `TilesPanel.shared`).
+    /// Preferences can change during permission setup, before the switcher exists.
     static func resetPreferencesDependentComponents() {
         guard TilesPanel.shared != nil else { return }
         TilesView.reset()
@@ -107,7 +98,6 @@ class App: AppCenterApplication {
         UsageStats.resetSession()
         ContextMenuEvents.toggle(false)
         TrackpadEvents.reset()
-        ProTransitionManager.shared.onSwitcherDismissed()
         OnboardingPopover.switcherWasDismissed()
         TilesPanel.shared.whenOrderedOut(finishHideUi)
     }
@@ -122,7 +112,6 @@ class App: AppCenterApplication {
         CursorEvents.toggle(false)
         Tooltips.hideAll()
         MainMenu.toggle(true)
-        ProTransitionManager.shared.refreshAfterSwitcherDismissal()
     }
 
     /// we don't want another window to become key when the TilesPanel is hidden
@@ -142,10 +131,6 @@ class App: AppCenterApplication {
         focusSelectedWindow(selectedWindow)
     }
 
-    @objc static func checkForUpdatesNow(_ sender: NSMenuItem) {
-        GeneralTab.checkForUpdatesNow(sender)
-    }
-
     // periphery:ignore:parameters sender - NSMenuItem target/action signature
     @objc static func checkPermissions(_ sender: NSMenuItem) {
         showPermissionsWindow()
@@ -155,19 +140,9 @@ class App: AppCenterApplication {
         NSWorkspace.shared.open(URL(string: Endpoints.supportUrl)!)
     }
 
-    @objc static func upgradeToPro() {
-        ProTransitionManager.openCheckout(from: .menubar)
-    }
-
-    @objc static func openAccount() {
-        UpgradeTab.openAccountPage()
-    }
-
     @objc static func showFeedbackPanel() {
         let wasFresh = FeedbackWindow.shared == nil
         initializeFeedbackWindowIfNeeded()
-        // Fresh init already runs reset(); skip the redundant second call so we don't
-        // double-fire the Sparkle preflight on the first ever open.
         if !wasFresh { FeedbackWindow.shared?.reset() }
         showSecondaryWindow(FeedbackWindow.shared!)
     }
@@ -198,8 +173,6 @@ class App: AppCenterApplication {
 
     static func showSecondaryWindow(_ window: NSWindow) {
         DismissalInput.cancel()
-        ProPromptHost.windowPresentation.cancel()
-        ProPromptPopover.cancelPendingPresentations()
         NSScreen.updatePreferred()
         App.shared.activate(ignoringOtherApps: true)
         window.makeKeyAndOrderFront(nil)
@@ -240,49 +213,14 @@ class App: AppCenterApplication {
     #if DEBUG
     static func replayFirstLaunchForQa() {
         endFirstLaunchWithPopoverOrSettings()
-        ProTransitionManager.shared.onAppLaunchComplete()
     }
     #endif
 
     private static func endFirstLaunchWithPopoverOrSettings() {
-        let isNewUsersFirstLaunch = !Preferences.settingsWindowShownOnFirstLaunch && ProTransitionState.isFreshInstall
-        let announcesTrial = willShowDay1WelcomeOnAppLaunch()
-        guard isNewUsersFirstLaunch,
-              OnboardingPopover.show(announcesTrial: announcesTrial) else {
-            showSettingsWindowOnFirstLaunchIfNeeded()
-            return
-        }
-        ProTransitionManager.shared.state.onboardingInProgress = true
-    }
-
-    @discardableResult
-    private static func showSettingsWindowOnFirstLaunchIfNeeded() -> Bool {
-        guard !Preferences.settingsWindowShownOnFirstLaunch else { return false }
-        // If the Day1 Welcome window will be shown on this launch, wait for the user to close it
-        // before showing Settings — otherwise both windows appear stacked.
-        if willShowDay1WelcomeOnAppLaunch() {
-            deferFirstLaunchSettingsUntilDay1WelcomeCloses()
-        } else {
+        guard !Preferences.settingsWindowShownOnFirstLaunch else { return }
+        guard OnboardingPopover.show() else {
             showAndCenterSettingsWindowOnFirstLaunch()
-        }
-        return true
-    }
-
-    /// Mirrors the conditions under which `ProTransitionScheduler.computeNextFireDate()` returns
-    /// "now" for the Welcome prompt. Kept narrow on purpose: the other Day-X prompts are gated by
-    /// trial age and don't fire on the very first launch.
-    private static func willShowDay1WelcomeOnAppLaunch() -> Bool {
-        guard case .trial = LicenseManager.shared.state else { return false }
-        return !ProTransitionManager.shared.hasSeenWelcome
-    }
-
-    private static func deferFirstLaunchSettingsUntilDay1WelcomeCloses() {
-        NotificationCenter.default.removeObserver(&firstLaunchSettingsObserver)
-        firstLaunchSettingsObserver = NotificationCenter.default.addObserver(
-            forName: NSPopover.didCloseNotification, object: nil, queue: .main) { notification in
-            guard Day1WelcomeLetterPopover.owns(notification.object) else { return }
-            NotificationCenter.default.removeObserver(&firstLaunchSettingsObserver)
-            DispatchQueue.main.async { showAndCenterSettingsWindowOnFirstLaunch() }
+            return
         }
     }
 
@@ -417,7 +355,6 @@ class App: AppCenterApplication {
             // recalc) is invisible. `TilesPanel.show()` flips alpha back to 1 once everything is
             // in its final state. No-op on first summon (panel was orderOut'd with alpha=0).
             TilesPanel.shared.alphaValue = 0
-            ProTransitionManager.shared.onSwitcherShown()
             let shouldStartInSearchMode = Preferences.effectiveShortcutStyle(shortcutIndex) == .searchOnRelease
             TilesView.startSearchSession(shouldStartInSearchMode)
             if shouldStartInSearchMode {
@@ -572,24 +509,10 @@ class App: AppCenterApplication {
         // Needs the AX runloop `BackgroundWork.start()` created, so it cannot go with the launch-time setup.
         AxObserverRegistry.shared.startRecoveryTicks()
         CliEvents.observe()
-        App.sparkleDelegate = SparkleDelegate()
-        App.updaterController = SPUStandardUpdaterController(
-            startingUpdater: false,
-            updaterDelegate: App.sparkleDelegate!,
-            userDriverDelegate: nil)
-        #if DEBUG
-        if !Preferences.qaPristine && !QaLifecycle.enabled {
-            DispatchQueue.main.asyncAfter(deadline: .now() + 30) { App.updaterController?.startUpdater() }
-        }
-        #else
-        DispatchQueue.main.asyncAfter(deadline: .now() + 30) { App.updaterController?.startUpdater() }
-        #endif
         PreferencesEvents.initialize()
         #if DEBUG
         BenchmarkRunner.startIfNeeded()
         #endif
-        LicenseManager.shared.onAppBecameUsable(accessibility: AccessibilityPermission.status,
-                                               screenRecording: ScreenRecordingPermission.status)
         endFirstLaunchWithPopoverOrSettings()
         if pendingShowSettingsWindow {
             pendingShowSettingsWindow = false
@@ -605,10 +528,6 @@ class App: AppCenterApplication {
         #endif
         SearchDiscoveryHint.shared.initialize()
         UsageStats.prune()
-        // Created now rather than on the first prompt: its observers cancel prompts queued before that.
-        let promptHost = ProPromptHost.shared
-        ProTransitionManager.shared.onAction = { promptHost.dispatch($0) }
-        ProTransitionManager.shared.onAppLaunchComplete()
         #if DEBUG
         if QaLifecycle.enabled { QaLifecycle.finishedLaunching = true; QaLifecycle.launchCount += 1 }
         #endif
@@ -664,64 +583,7 @@ extension App: NSApplicationDelegate {
         WindowServerEvents.observe()
         AXUIElement.setGlobalTimeout()
         PreferencesPersistenceCheck.runInBackground()
-        LicenseManager.shared.onActivationSucceeded = {
-            DispatchQueue.main.async { ProActivationPopover.show() }
-        }
-        LicenseManager.shared.onBeforeProUnlock = {
-            if !LicenseManager.shared.isMocked { ProTransitionManager.shared.onProUnlocked() }
-        }
-        LicenseManager.shared.onStateChanged = { state in
-            Menubar.refreshLicenseMenuItems()
-            if !LicenseManager.shared.isMocked {
-                syncLicenseCookie(state: state)
-                ProTransitionManager.shared.onLicenseStateChanged()
-            }
-            UpgradeTab.refreshStatus()
-            SettingsWindow.shared?.refreshUpgradeButton()
-            App.resetPreferencesDependentComponents()
-            // `isProLocked` reads from state, so a state change implicitly changes the lock.
-            // Notify UI observers so Settings rows repaint their ghost/pro-locked styling.
-            NotificationCenter.default.post(name: ProTransitionManager.proLockStateDidChangeNotification, object: nil)
-        }
-        #if DEBUG
-        // The QA launch never initializes persisted licensing: its in-memory state must neither read nor
-        // alter the real license, and it must not schedule a revalidation that can later replace the mock.
-        if CommandLine.arguments.contains("--mock-pro") {
-            LicenseManager.shared.mockProUser()
-        } else {
-            LicenseManager.shared.initialize()
-        }
-        #else
-        LicenseManager.shared.initialize()
-        #endif
         SystemPermissions.ensurePermissionsAreGranted()
-    }
-
-    func application(_ application: NSApplication, open urls: [URL]) {
-        for url in urls {
-            if url.scheme == App.bundleIdentifier {
-                handleCustomUrl(url)
-            }
-        }
-    }
-
-    private func handleCustomUrl(_ url: URL) {
-        guard url.host == "activate",
-              let components = URLComponents(url: url, resolvingAgainstBaseURL: false),
-              let licenseKey = components.queryItems?.first(where: { $0.name == "license_key" })?.value,
-              !licenseKey.isEmpty else {
-            return
-        }
-        UpgradeTab.showAutoActivating()
-        LicenseManager.shared.activate(licenseKey) { result in
-            switch result {
-            case .success:
-                UpgradeTab.showAutoActivationSuccess()
-                App.resetPreferencesDependentComponents()
-            case .failure:
-                UpgradeTab.showAutoActivationFailed(licenseKey)
-            }
-        }
     }
 
     func applicationShouldHandleReopen(_ sender: NSApplication, hasVisibleWindows flag: Bool) -> Bool {

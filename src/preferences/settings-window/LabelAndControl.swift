@@ -1,4 +1,19 @@
 import Cocoa
+
+enum SegmentSymbol {
+    static let pointSize: CGFloat = 13
+    static let margin: CGFloat = 1
+    static let appKitGap: CGFloat = 2
+    static let extraGap: CGFloat = 1.5
+
+    /// AppKit truncates labels once the glyph, gap, and label exceed the segment width.
+    /// Additional padding comes from the remaining space so a fitting label stays visible.
+    static func spacing(glyphWidth: CGFloat, labelWidth: CGFloat, availableWidth: CGFloat) -> (before: CGFloat, after: CGFloat) {
+        let room = max(0, min(2 * margin + extraGap, availableWidth - glyphWidth - appKitGap - labelWidth))
+        let before = min(margin, room / 2)
+        return (before, room - before)
+    }
+}
 import ShortcutRecorder
 
 enum LabelPosition {
@@ -65,8 +80,7 @@ class LabelAndControl: NSObject {
     static func makeImageRadioButtons(_ rawName: String,
                                       _ macroPreferences: [ImageMacroPreference],
                                       extraAction: ActionClosure? = nil,
-                                      buttonSpacing: CGFloat = 15,
-                                      proGatedIndices: Set<Int> = []) -> NSStackView {
+                                      buttonSpacing: CGFloat = 15) -> NSStackView {
         SettingsSearchIndex.registerStrings(macroPreferences.map { $0.localizedString })
         let buttonViews = macroPreferences.enumerated().map { (index, preference) -> ImageTextButtonView in
             let state: NSControl.StateValue = CachedUserDefaults.intFromMacroPref(rawName, macroPreferences) == index ? .on : .off
@@ -74,13 +88,6 @@ class LabelAndControl: NSObject {
             buttonView.onClick = { [weak buttonView] control in
                 guard let buttonView else { return }
                 let siblings = (buttonView.superview as? NSStackView)?.arrangedSubviews.compactMap { $0 as? ImageTextButtonView } ?? []
-                if LicenseManager.shared.isProLocked && proGatedIndices.contains(index) {
-                    // Snap the radio group back to the stored value and bounce to the upgrade tab.
-                    let storedIndex = CachedUserDefaults.intFromMacroPref(rawName, macroPreferences)
-                    siblings.enumerated().forEach { (i, b) in b.state = (i == storedIndex) ? .on : .off }
-                    UpgradeTab.navigateToUpgradeTab(for: .styles)
-                    return
-                }
                 siblings.enumerated().forEach { (i, otherButtonView) in
                     if otherButtonView != buttonView {
                         otherButtonView.state = i == index ? .on : .off

@@ -25,13 +25,15 @@ OS APIs are quite limited for the kind of low-level, system-wide app AltTab is. 
 
 ## Project architecture
 
+Local automation requires an explicit `--enable-cli` launch. See [Local CLI access](local-cli.md) for usage and the window information exposed during an enabled session.
+
 To mitigate the issues listed above, we took some measures.
 
 We minimize reliance on XCode, InterfaceBuilder, Playground, and other GUI tools. You can’t cut the dependency completely though as only XCode can build macOS apps. The whole UI, including the menubar, is built in code (no xib). Currently, the project has these files:
 
 * `alt-tab-macos.xcodeproj` file describing AltTab itself. It contains some settings for the app
 * `alt_tab_macos.entitlements` and `Info.plist` which are static files describing some app config for XCode
-* `vendor/` holds vendored open-source libraries (Sparkle, ShortcutRecorder, AppCenter) as local SPM packages. `vendor/scripts/update_*.sh` refresh them from upstream
+* `vendor/` holds vendored open-source libraries (ShortcutRecorder, AppCenter) as local SPM packages. `vendor/scripts/update_*.sh` refresh them from upstream
 * Some `.xcconfig` files in `config/` which contain XCode settings that people typically change using XCode UI, but that I want to be version controlled
 
 The project directory is organized in the following way:

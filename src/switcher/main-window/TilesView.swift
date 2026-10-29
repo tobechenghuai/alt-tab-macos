@@ -98,7 +98,7 @@ class TilesView {
 
     static func enableSearchEditing() {
         MainThreadStall.step()
-        switch SearchModeResolver.enableEditing(mode: searchMode, canSearch: ProFeature.searchInSwitcher.attemptUse()) {
+        switch SearchModeResolver.enableEditing(mode: searchMode) {
             case .placeCaretOnly:
                 giveTheFieldTheCaret()
             case .enterEditing:
@@ -878,7 +878,6 @@ class TilesDocumentView: FlippedView {
 class FlippedView: NSView {
     override var isFlipped: Bool { true }
 }
-
 
 enum Direction {
     case right

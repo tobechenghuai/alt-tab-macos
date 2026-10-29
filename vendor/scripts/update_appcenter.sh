@@ -80,6 +80,7 @@ cat > "$DEST/Frameworks/CrashReporter.xcframework/Info.plist" <<EOF
 </plist>
 EOF
 
+patch -p1 -d "$DEST" < "$(dirname "$0")/patches/appcenter-disable-attachments.diff"
 apply_local_patches "$DEST"
 
 # Enumerate every subdirectory containing .h files. SPM has no recursive header-search glob,

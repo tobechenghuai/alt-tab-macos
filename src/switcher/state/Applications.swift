@@ -1332,8 +1332,7 @@ class Applications {
                 guard let app else { return }
                 let r = Application.appIconWithoutPadding(app.runningApplication.icon)
                 DispatchQueue.main.async { [weak app] in
-                    app?.icon = r?.image
-                    app?.iconSourcePixels = r?.sourcePixels
+                    app?.icon = r
                 }
             }
         }

@@ -7,7 +7,7 @@ final class SearchDiscoveryPanel: NSPanel {
     )
     static let dismissLabel = NSLocalizedString("Don't show discovery tips again", comment: "")
     let titleLabel = NSTextField(labelWithString: "")
-    private let rabbit = ProMascotView()
+    private let rabbit = MascotView()
     private let root = NSView()
     let hintLabel = NSTextField(labelWithString: "")
     let dismissButton = SearchDiscoveryCloseButton()
@@ -207,7 +207,7 @@ final class SearchDiscoveryCloseButton: NSButton {
     }
 }
 
-final class ProMascotView: NSImageView {
+final class MascotView: NSImageView {
     private static let artwork = NSImage(named: "pro-rabbit")
 
     init() {
@@ -230,7 +230,7 @@ final class MascotMessageView: NSStackView {
     init(title: String, message: String, emphasizeMessage: Bool = false) {
         super.init(frame: .zero)
         translatesAutoresizingMaskIntoConstraints = false
-        let rabbit = ProMascotView()
+        let rabbit = MascotView()
         rabbit.wantsLayer = true
         let shadow = NSShadow()
         shadow.shadowColor = NSColor.black.withAlphaComponent(0.28)
@@ -260,16 +260,10 @@ final class MascotMessageView: NSStackView {
         spacing = 10
     }
 
-    func update(title: String, message: String, proGradient: Bool = false) {
+    func update(title: String, message: String) {
         heading.stringValue = title
         detail.stringValue = message
         detail.setAccessibilityLabel(message)
-        guard proGradient, let range = message.range(of: ProBadgeView.proLabel) else { return }
-        let text = NSMutableAttributedString(string: message,
-            attributes: [.font: detail.font!, .foregroundColor: detail.textColor!])
-        text.replaceCharacters(in: NSRange(range, in: message),
-            with: ProGradient.makeProTextAttachment(font: detail.font!))
-        detail.attributedStringValue = text
     }
 
     @available(*, unavailable)

@@ -217,7 +217,8 @@ class WindowCaptureScreenshots {
             // These APIs return before the OS answers, so `screenshotsQueue` cannot bound their concurrency.
             // The gate limits bursts that can wedge replayd machine-wide (#5861).
             ActiveWindowCaptures.run { finish in
-                guard !ActiveWindowCaptures.isTerminating, !ScreenLockEvents.isScreenLocked else {
+                guard !ActiveWindowCaptures.isTerminating, !ScreenLockEvents.isScreenLocked,
+                      WindowCapturePolicy.allowsCapture(inBackground: Preferences.captureWindowsInBackground, switcherActive: SwitcherSession.isActive) else {
                     finish()
                     return
                 }
@@ -315,14 +316,16 @@ class WindowCaptureScreenshotsPrivateApi {
     }
 
     private static func oneTimeCapture(_ wid: CGWindowID) -> CGImage? {
-        guard !ActiveWindowCaptures.isTerminating, !ScreenLockEvents.isScreenLocked else { return nil }
+        guard !ActiveWindowCaptures.isTerminating, !ScreenLockEvents.isScreenLocked,
+                      WindowCapturePolicy.allowsCapture(inBackground: Preferences.captureWindowsInBackground, switcherActive: SwitcherSession.isActive) else { return nil }
         // we use CGSHWCaptureWindowList because it can screenshot minimized windows, which CGWindowListCreateImage can't
         var windowId_ = wid
         // Synchronous, so it was already bounded by the 8-wide `screenshotsQueue`; through the same gate
         // anyway, so in-flight captures have ONE accounting whichever path took them.
         var list = [CGImage]()
         ActiveWindowCaptures.runSync {
-            guard !ActiveWindowCaptures.isTerminating, !ScreenLockEvents.isScreenLocked else { return }
+            guard !ActiveWindowCaptures.isTerminating, !ScreenLockEvents.isScreenLocked,
+                      WindowCapturePolicy.allowsCapture(inBackground: Preferences.captureWindowsInBackground, switcherActive: SwitcherSession.isActive) else { return }
             list = CGSHWCaptureWindowList(CGS_CONNECTION, &windowId_, 1, [.ignoreGlobalClipShape, .bestResolution, .fullSize]).takeRetainedValue() as! [CGImage]
         }
         return list.first

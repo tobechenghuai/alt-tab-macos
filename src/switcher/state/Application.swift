@@ -15,11 +15,6 @@ class Application: NSObject {
     var bundleURL: URL?
     var executableURL: URL?
     var icon: CGImage?
-    /// Pixel width of the representation `NSImage` handed us for `icon`. When it is below the
-    /// requested source width, `appIconWithoutPadding` had to upscale, and the tile looks soft.
-    /// Reported in the debug profile: it is the only way to tell a blurry icon caused by a
-    /// low-res source apart from one caused by an undersized `maxPossibleAppIconSize`.
-    var iconSourcePixels: Int?
     var dockLabel: String?
     /// Mirrors of the two `NSRunningApplication` properties this class reads repeatedly. Reading either one
     /// off `runningApplication` triggers a full LaunchServices dynamic-property refresh, and
@@ -58,9 +53,7 @@ class Application: NSObject {
     ///   * icon.draw() -> returns nil for some users (could never reproduce it locally)
     ///   * icon.bestRepresentation() > bestRep.draw(in:) -> returns nil for some users (could never reproduce it locally)
     /// MacOS Big Sur also introduced a constant padding around app icons. It was later increased with Tahoe. We have to crop it
-    /// Returns the cropped icon, plus the pixel width of the source representation `NSImage` gave us
-    /// (below `sourceWidth` means we upscaled, i.e. the tile will look soft).
-    static func appIconWithoutPadding(_ icon: NSImage?) -> (image: CGImage, sourcePixels: Int)? {
+    static func appIconWithoutPadding(_ icon: NSImage?) -> CGImage? {
         guard let icon else { return nil }
         let finalWidth = max(TilesPanel.maxPossibleAppIconSize.width, TilesPanel.maxPossibleAppIconSize.height)
         // we hardcode cropping values based on a reference 1024 icon, and depending on the macOS version
@@ -77,8 +70,7 @@ class Application: NSObject {
               let context = CGContext(data: nil, width: Int(finalWidth), height: Int(finalWidth), bitsPerComponent: 8, bytesPerRow: 0, space: CGColorSpaceCreateDeviceRGB(), bitmapInfo: CGBitmapInfo(rawValue: CGImageAlphaInfo.premultipliedFirst.rawValue).union(.byteOrder32Little).rawValue) else { return nil }
         context.interpolationQuality = .high
         context.draw(image, in: CGRect(origin: .zero, size: NSSize(width: finalWidth, height: finalWidth)))
-        guard let result = context.makeImage() else { return nil }
-        return (result, cgImage.width)
+        return context.makeImage()
     }
 
     init(_ runningApplication: NSRunningApplication, pid: pid_t) {
@@ -96,8 +88,7 @@ class Application: NSObject {
         super.init()
         // debug, not info: this fires for EVERY running process AltTab tracks, so at launch it printed ~50
         // lines of daemons and agents that can never appear in the switcher (PowerChime, loginwindow,
-        // AXVisualSupportAgent…). A process listing is not what a bug report needs; `DebugProfile` already
-        // reports the count, and `RunningApplicationsEvents` logs launches and quits.
+        // AXVisualSupportAgent…). `RunningApplicationsEvents` logs launches and quits.
         Logger.debug { self.debugId }
         // Here rather than at a call site: a process reaches the model through `Applications.createActualApp`
         // AND through the synchronous `findOrCreate` an AX/WindowServer event for an unknown pid takes, and
@@ -167,8 +158,7 @@ class Application: NSObject {
             guard let self, self.icon == nil else { return }
             let r = Application.appIconWithoutPadding(self.runningApplication.icon)
             DispatchQueue.main.async { [weak self] in
-                self?.icon = r?.image
-                self?.iconSourcePixels = r?.sourcePixels
+                self?.icon = r
             }
         }
     }

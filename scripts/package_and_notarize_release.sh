@@ -1,6 +1,8 @@
 #!/usr/bin/env bash
 
-set -exu
+set +x
+set -euo pipefail
+umask 077
 
 version="$(cat "$VERSION_FILE")"
 appFile="$APP_NAME.app"
@@ -17,7 +19,7 @@ requestStatus=$("$oldPwd"/scripts/notarytool submit \
   --team-id "$APPLE_TEAM_ID" \
   "$zipName" \
   --wait --timeout 15m 2>&1 |
-  tee /dev/tty |
+  tee /dev/stderr |
   awk -F ': ' '/  status:/ { print $2; }')
 if [[ $requestStatus != "Accepted" ]]; then exit 1; fi
 

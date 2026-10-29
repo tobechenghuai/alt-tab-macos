@@ -3,14 +3,6 @@ on:
     branches:
       - master
 env:
-  GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-  APPCENTER_SECRET: ${{ secrets.APPCENTER_SECRET }}
-  APPCENTER_TOKEN: ${{ secrets.APPCENTER_TOKEN }}
-  APPLE_ID: ${{ secrets.APPLE_ID }}
-  APPLE_PASSWORD: ${{ secrets.APPLE_PASSWORD }}
-  APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
-  APPLE_P12_CERTIFICATE: ${{ secrets.APPLE_P12_CERTIFICATE }}
-  SPARKLE_ED_PRIVATE_KEY: ${{ secrets.SPARKLE_ED_PRIVATE_KEY }}
   GITHUB_EVENT_BEFORE: ${{ github.event.before }}
   GITHUB_EVENT_AFTER: ${{ github.event.after }}
   BUILD_DIR: ${{ github.workspace }}
@@ -21,6 +13,8 @@ jobs:
   build:
     runs-on: xcode-27 # all options: https://github.com/actions/runner-images/tree/main
     environment: production
+    permissions:
+      contents: write
     steps:
 #      - env:
 #          GITHUB_CONTEXT: ${{ toJSON(github) }}
@@ -38,12 +32,14 @@ jobs:
       - uses: actions/checkout@v6
         with:
           fetch-depth: ${{ steps.pre-checkout.outputs.fetch-depth }}
+          persist-credentials: false
       - uses: actions/setup-node@v6
         with:
           node-version: 16
           cache: 'npm'
       - run: sudo xcode-select -s /Applications/Xcode_27.1.app/Contents/Developer
       - run: scripts/print_env.sh
+      - run: python3 scripts/tests/test_ci_credentials.py
       - run: npm ci
       # lint what the next release will contain: every commit since the last release commit. The push's own
       # range breaks after a force-push, since the old head is no longer in the history to lint from. The
@@ -55,15 +51,33 @@ jobs:
           npx commitlint --from "$from" --to "$GITHUB_EVENT_AFTER" --verbose
       - run: scripts/ensure_generated_files_are_up_to_date.sh
       - run: scripts/determine_next_version.sh
-      - run: scripts/replace_environment_variables_in_app.sh
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       - run: scripts/codesign/setup_ci_master.sh
+        env:
+          APPLE_P12_CERTIFICATE: ${{ secrets.APPLE_P12_CERTIFICATE }}
+      - run: scripts/replace_environment_variables_in_app.sh
+        env:
+          APPCENTER_SECRET: ${{ secrets.APPCENTER_SECRET }}
       - run: scripts/run_tests.sh
       - run: scripts/build_app.sh
       - run: scripts/package_and_notarize_release.sh
+        env:
+          APPLE_ID: ${{ secrets.APPLE_ID }}
+          APPLE_PASSWORD: ${{ secrets.APPLE_PASSWORD }}
+          APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
+      - name: Clean signing resources
+        if: ${{ always() }}
+        run: scripts/codesign/cleanup_ci.sh
       - run: scripts/upload_symbols_to_appcenter.sh
-      - run: scripts/update_appcast.sh
+        env:
+          APPCENTER_TOKEN: ${{ secrets.APPCENTER_TOKEN }}
       - run: scripts/update_readme_and_website.sh
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       - run: npx semantic-release
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       - id: set_release_info
         run: scripts/extract_latest_changelog.sh
       - uses: softprops/action-gh-release@v3

@@ -1,8 +1,12 @@
 #!/usr/bin/env bash
 
-set -exu
+set +x
+set -euo pipefail
+umask 077
 
-certificateFile="codesign"
+certificateDirectory="$(mktemp -d "${TMPDIR:-/tmp}/alttab-certificate.XXXXXX")"
+trap 'rm -rf "$certificateDirectory"' EXIT
+certificateFile="$certificateDirectory/codesign"
 certificatePassword=$(openssl rand -base64 12)
 
 scripts/codesign/generate_selfsigned_certificate.sh "$certificateFile" "$certificatePassword"

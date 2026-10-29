@@ -1,6 +1,8 @@
 #!/usr/bin/env bash
 
-set -exu
+set +x
+set -euo pipefail
+umask 077
 
 github_api_request() {
   local url="$1"

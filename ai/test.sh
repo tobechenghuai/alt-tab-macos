@@ -1,5 +1,6 @@
 #!/bin/bash
 
+python3 scripts/tests/test_ci_credentials.py || exit $?
 python3 scripts/l10n/validate_localizations.py || exit $?
 python3 scripts/assets/compile_illustrations.py --check || exit $?
 python3 scripts/assets/test_compile_illustrations.py || exit $?

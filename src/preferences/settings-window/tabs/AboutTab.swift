@@ -124,7 +124,7 @@ class AboutWindow: NSPanel {
         ])
     }
 
-    private func updateUsageStats() {
+    func updateUsageStats() {
         let now = Date()
         let weekCount = UsageStats.count("triggers", since: now.addingTimeInterval(-7 * 24 * 3600))
         let monthCount = UsageStats.count("triggers", since: now.addingTimeInterval(-30 * 24 * 3600))

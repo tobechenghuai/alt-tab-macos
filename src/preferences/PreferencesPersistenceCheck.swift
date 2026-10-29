@@ -12,7 +12,7 @@ enum PreferencesPersistenceCheck {
     /// explicit suites (license/Pro-transition state, usage stats). System suites we only read (e.g.
     /// `com.apple.Finder`) are out of scope.
     static func suiteNames() -> [String] {
-        [App.bundleIdentifier, LicenseManager.defaultsSuiteName, "\(App.bundleIdentifier).usage"]
+        [App.bundleIdentifier, "\(App.bundleIdentifier).usage"]
     }
 
     /// Entry point, called early from `applicationDidFinishLaunching`. Probes off-main; the (rare) alert

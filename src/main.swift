@@ -1,12 +1,6 @@
 import AppKit
 import Darwin
 
-#if DEBUG
-if let cleanup = CommandLine.arguments.first(where: { $0.hasPrefix("--qa-lifecycle-cleanup=") }) {
-    exit(QaLifecycle.cleanup(String(cleanup.dropFirst("--qa-lifecycle-cleanup=".count))))
-}
-#endif
-
 if let command = CliClient.detectCommand() {
     CliClient.sendCommandAndProcessResponse(command)
 }

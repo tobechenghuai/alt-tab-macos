@@ -29,9 +29,10 @@ enum WindowThumbnails {
     /// its thumbnail while it's still frontmost lets that tile show a real screenshot instead. No-op while the
     /// switcher is open (the normal refresh captures then); throttled per wid; obeys the screenshot guards below.
     static func captureFocusedInBackground(_ window: Window) {
-        guard !SwitcherSession.isActive, let wid = window.cgWindowId, wid != CGWindowID(bitPattern: -1) else { return }
+        guard Preferences.captureWindowsInBackground, !SwitcherSession.isActive,
+              let wid = window.cgWindowId, wid != CGWindowID(bitPattern: -1) else { return }
         focusedCaptureThrottler.throttleOrProceed(key: "\(wid)") {
-            refreshAsync([window], .refreshUiAfterExternalEvent, force: true)
+            refreshAsync([window], .refreshUiAfterExternalEvent)
         }
     }
 
@@ -83,7 +84,6 @@ enum WindowThumbnails {
         DispatchQueue.main.asyncAfter(deadline: .now() + restoreAnimationDuration) { [weak window] in
             restoringWids.remove(wid)
             guard let window else { return }
-            // no `force`: this capture obeys the same conditions as the ones it replaces, so with the
             // switcher closed and background captures off it is simply dropped — the next show captures
             // every window anyway
             refreshAsync([window], .refreshUiAfterExternalEvent)
@@ -137,8 +137,7 @@ enum WindowThumbnails {
             return true
         }
         partialFrameRetries[wid] = retries + 1
-        // no `force`: this re-capture obeys the same conditions the original one did, so a switcher that
-        // closed in the meantime (with background captures off) simply drops it
+        // Retries re-check the current capture preference and switcher session.
         DispatchQueue.main.asyncAfter(deadline: .now() + partialFrameRetryDelay) { [weak window] in
             guard let window else { return }
             refreshAsync([window], .refreshUiAfterExternalEvent)
@@ -150,13 +149,11 @@ enum WindowThumbnails {
     /// macOS 26+): full-resolution frames for the Preview panel are fetched separately and just-in-time
     /// by `fetchPreviewFrames` into the session's capped cache, so idle RAM stays small and a show
     /// doesn't burst N full-res captures at the system capture path (#5861).
-    static func refreshAsync(_ windows: [Window], _ source: RefreshCausedBy, windowRemoved: Bool = false, prioritizedIds: Set<CGWindowID>? = nil, force: Bool = false) {
+    static func refreshAsync(_ windows: [Window], _ source: RefreshCausedBy, windowRemoved: Bool = false, prioritizedIds: Set<CGWindowID>? = nil) {
         guard (!windows.isEmpty || windowRemoved) && ScreenRecordingPermission.status == .granted
                && !ScreenLockEvents.isScreenLocked
                && Preferences.anyShortcutShowsWindowCaptures
-               // `force` = a targeted background capture of the frontmost window (captureFocusedInBackground),
-               // which must run even when the switcher is closed and background capture is off.
-               && (Preferences.captureWindowsInBackground || SwitcherSession.isActive || force) else { return }
+               && WindowCapturePolicy.allowsCapture(inBackground: Preferences.captureWindowsInBackground, switcherActive: SwitcherSession.isActive) else { return }
         var eligibleWindows = [Window]()
         for window in windows {
             if !window.isWindowlessApp, let cgWindowId = window.cgWindowId, cgWindowId != CGWindowID(bitPattern: -1),

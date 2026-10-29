@@ -115,13 +115,13 @@ static NSString *const kMSACStartTimestampPrefix = @"ChannelStartTimer";
     @autoreleasepool {
 
       // Check if the log should be filtered out. If so, don't enqueue it.
-      __block BOOL shouldFilter = NO;
+      __block BOOL shouldFilter = [item.type isEqualToString:@"errorAttachment"];
       [self enumerateDelegatesForSelector:@selector(channelUnit:shouldFilterLog:)
                                 withBlock:^(id<MSACChannelDelegate> delegate) {
                                   shouldFilter = shouldFilter || [delegate channelUnit:self shouldFilterLog:item];
                                 }];
       if (shouldFilter) {
-        MSACLogDebug([MSACAppCenter logTag], @"Log of type '%@' was filtered out by delegate(s)", item.type);
+        MSACLogDebug([MSACAppCenter logTag], @"Log of type '%@' was filtered out", item.type);
         [self enumerateDelegatesForSelector:@selector(channel:didCompleteEnqueueingLog:internalId:)
                                   withBlock:^(id<MSACChannelDelegate> delegate) {
                                     [delegate channel:self didCompleteEnqueueingLog:item internalId:internalLogId];
@@ -302,11 +302,19 @@ static NSString *const kMSACStartTimestampPrefix = @"ChannelStartTimer";
                                                                limit:self.configuration.batchSizeLimit
                                                   excludedTargetKeys:[self.pausedTargetKeys allObjects]
                                                    completionHandler:^(NSArray<id<MSACLog>> *_Nonnull logArray, NSString *batchId) {
-                                                     // Check if there is data to send. Logs may be deleted from storage before this flush.
-                                                     if (logArray.count > 0) {
+                                                     // Apply the attachment policy to logs persisted by earlier app versions as well.
+                                                     NSMutableArray<id<MSACLog>> *uploadLogs = [NSMutableArray new];
+                                                     for (id<MSACLog> log in logArray) {
+                                                       if (![log.type isEqualToString:@"errorAttachment"]) {
+                                                         [uploadLogs addObject:log];
+                                                       }
+                                                     }
+                                                     if (uploadLogs.count > 0) {
                                                        MSACLogContainer *container = [[MSACLogContainer alloc] initWithBatchId:batchId
-                                                                                                                       andLogs:logArray];
+                                                                                                                       andLogs:uploadLogs];
                                                        [self sendLogContainer:container];
+                                                     } else if (logArray.count > 0) {
+                                                       [self.storage deleteLogsWithBatchId:batchId groupId:self.configuration.groupId];
                                                      }
                                                    }];
 
